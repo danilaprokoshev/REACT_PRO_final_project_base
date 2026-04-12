@@ -4,3 +4,4 @@ dist
 dist-esbuild
 dogfood
 docs/
+AGENTS.md
