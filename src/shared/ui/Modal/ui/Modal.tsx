@@ -28,9 +28,17 @@ const ModalInner: FC<ModalProps> = ({ title, isOpen, onClose, children }) => {
 	const closeButtonRef = useRef<HTMLButtonElement>(null);
 	const triggerRef = useRef<Element | null>(null);
 
+	// Счётчик открытий модалки — useRef без ререндера.
+	// В отличие от useState, изменение ref.current не вызывает повторный рендер.
+	const openCountRef = useRef(0);
+
 	// Запоминание триггера + начальный фокус на крестик
 	useEffect(() => {
 		if (isOpen) {
+			// Инкрементируем счётчик открытий (без ререндера)
+			openCountRef.current += 1;
+			console.log('Modal opened', openCountRef.current, 'times');
+
 			// Запоминаем элемент, который был в фокусе до открытия модалки
 			triggerRef.current = document.activeElement;
 			// Устанавливаем фокус после отрисовки (элемент должен стать visible)

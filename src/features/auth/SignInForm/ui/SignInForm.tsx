@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useEffect, useRef } from 'react';
 import { Avatar, Box, Container, Link, Typography } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { Controller, SubmitHandler, useForm } from 'react-hook-form';
@@ -17,6 +17,7 @@ import { userActions } from '../../../../shared/store/slices/user';
 import { getMessageFromError } from '../../../../shared/utils';
 
 export const SignInForm: FC = () => {
+	const emailRef = useRef<HTMLInputElement>(null);
 	const dispatch = useDispatch();
 	const location = useLocation();
 	// navigate поможет сделать редирект в нужный момент
@@ -40,6 +41,11 @@ export const SignInForm: FC = () => {
 		// валидации, мы используем yup
 		resolver: yupResolver(signInFormSchema),
 	});
+
+	// Автофокус на поле email при монтировании
+	useEffect(() => {
+		emailRef.current?.focus();
+	}, []);
 
 	const submitHandler: SubmitHandler<SignInFormValues> = async (values) => {
 		try {
@@ -110,6 +116,7 @@ export const SignInForm: FC = () => {
 								autoComplete='email'
 								error={!!errors.email?.message}
 								helperText={errors.email?.message}
+								inputRef={emailRef}
 								{...field}
 							/>
 						)}
