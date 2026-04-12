@@ -1,6 +1,7 @@
 import s from './LikeButton.module.css';
 import { ReactComponent as LikeSvg } from './../../../assets/icons/like.svg';
 import classNames from 'classnames';
+import { useEffect, useState, useOptimistic, startTransition } from 'react';
 import { useAppSelector } from '../../../store/utils';
 import { userSelectors } from '../../../store/slices/user';
 import {
@@ -9,7 +10,6 @@ import {
 	IErrorResponse,
 } from '../../../store/api/productsApi';
 import { toast } from 'react-toastify';
-import { useOptimistic } from 'react';
 
 type TLikeButtonProps = {
 	product: Product;
@@ -22,27 +22,37 @@ export const LikeButton = ({ product }: TLikeButtonProps) => {
 	const [deleteLike] = useDeleteLikeProductMutation();
 
 	const isLike = product?.likes.some((l) => l.userId === user?.id);
-	const [optimisticLike, setOptimisticLike] = useOptimistic(isLike);
+	const [confirmedLike, setConfirmedLike] = useState(isLike);
+	const [optimisticLike, setOptimisticLike] = useOptimistic(confirmedLike);
 
-	const toggleLike = async () => {
+	useEffect(() => {
+		setConfirmedLike(isLike);
+	}, [isLike]);
+
+	const toggleLike = () => {
 		if (!accessToken) {
 			toast.warning('Вы не авторизованы');
 			return;
 		}
-		const newLikeState = !isLike;
-		setOptimisticLike(newLikeState);
-		let response;
-		if (newLikeState) {
-			response = await setLike({ id: `${product.id}` });
-		} else {
-			response = await deleteLike({ id: `${product.id}` });
-		}
+		const newLikeState = !optimisticLike;
+		startTransition(async () => {
+			setOptimisticLike(newLikeState);
+			let response;
+			if (newLikeState) {
+				response = await setLike({ id: `${product.id}` });
+			} else {
+				response = await deleteLike({ id: `${product.id}` });
+			}
 
-		if (response.error) {
-			setOptimisticLike(isLike);
-			const error = response.error as IErrorResponse;
-			toast.error(error.data?.message ?? 'Не удалось изменить лайк');
-		}
+			if (response.error) {
+				const error = response.error as IErrorResponse;
+				toast.error(error.data?.message ?? 'Не удалось изменить лайк');
+			} else {
+				startTransition(() => {
+					setConfirmedLike(newLikeState);
+				});
+			}
+		});
 	};
 
 	return (
