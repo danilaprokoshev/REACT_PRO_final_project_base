@@ -29,12 +29,13 @@ export const LikeButton = ({ product }: TLikeButtonProps) => {
 			toast.warning('Вы не авторизованы');
 			return;
 		}
-		setOptimisticLike(!isLike);
+		const newLikeState = !isLike;
+		setOptimisticLike(newLikeState);
 		let response;
-		if (isLike) {
-			response = await deleteLike({ id: `${product.id}` });
-		} else {
+		if (newLikeState) {
 			response = await setLike({ id: `${product.id}` });
+		} else {
+			response = await deleteLike({ id: `${product.id}` });
 		}
 
 		if (response.error) {
