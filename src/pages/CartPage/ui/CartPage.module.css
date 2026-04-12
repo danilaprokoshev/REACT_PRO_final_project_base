@@ -163,9 +163,7 @@ input[type='number']:focus {
 	padding: 16px;
 	background: #ffffff;
 	border-radius: 20px;
-	box-shadow:
-		0 0 1px rgb(40 41 61 / 2%),
-		0 2px 16px rgb(96 97 112 / 16%);
+	box-shadow: 0 0 1px rgb(40 41 61 / 2%), 0 2px 16px rgb(96 97 112 / 16%);
 }
 
 .cart-amount__title {
@@ -279,9 +277,7 @@ input[type='number']:focus {
 	font-size: 20px;
 	line-height: 24px;
 	border-radius: 60px;
-	box-shadow:
-		0 0 1px rgb(40 41 61 / 2%),
-		0 2px 16px rgb(96 97 112 / 16%);
+	box-shadow: 0 0 1px rgb(40 41 61 / 2%), 0 2px 16px rgb(96 97 112 / 16%);
 }
 
 .button_type_wide {
