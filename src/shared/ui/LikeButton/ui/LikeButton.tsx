@@ -41,7 +41,7 @@ export const LikeButton = ({ product }: TLikeButtonProps) => {
 		if (response.error) {
 			setOptimisticLike(isLike);
 			const error = response.error as IErrorResponse;
-			toast.error(error.data.message);
+			toast.error(error.data?.message ?? 'Не удалось изменить лайк');
 		}
 	};
 
