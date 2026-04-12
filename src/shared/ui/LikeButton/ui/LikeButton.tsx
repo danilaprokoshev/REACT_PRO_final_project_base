@@ -9,6 +9,7 @@ import {
 	IErrorResponse,
 } from '../../../store/api/productsApi';
 import { toast } from 'react-toastify';
+import { useOptimistic } from 'react';
 
 type TLikeButtonProps = {
 	product: Product;
@@ -21,12 +22,14 @@ export const LikeButton = ({ product }: TLikeButtonProps) => {
 	const [deleteLike] = useDeleteLikeProductMutation();
 
 	const isLike = product?.likes.some((l) => l.userId === user?.id);
+	const [optimisticLike, setOptimisticLike] = useOptimistic(isLike);
 
 	const toggleLike = async () => {
 		if (!accessToken) {
 			toast.warning('Вы не авторизованы');
 			return;
 		}
+		setOptimisticLike(!isLike);
 		let response;
 		if (isLike) {
 			response = await deleteLike({ id: `${product.id}` });
@@ -43,7 +46,7 @@ export const LikeButton = ({ product }: TLikeButtonProps) => {
 	return (
 		<button
 			className={classNames(s['card__favorite'], {
-				[s['card__favorite_is-active']]: isLike,
+				[s['card__favorite_is-active']]: optimisticLike,
 			})}
 			onClick={toggleLike}>
 			<LikeSvg />
