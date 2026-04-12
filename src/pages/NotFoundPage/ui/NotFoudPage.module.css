@@ -1,8 +1,8 @@
-.NotFoundPage {
-	width: 100vw;
-	height: 100vh;
+.not-found-page {
 	display: flex;
+	flex-direction: column;
 	justify-content: center;
 	align-items: center;
-	flex-direction: column;
+	width: 100vw;
+	height: 100vh;
 }

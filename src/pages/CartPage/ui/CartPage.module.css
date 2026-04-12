@@ -3,27 +3,27 @@
 }
 
 .container {
-	max-width: 1024px;
-	padding-left: 16px;
-	padding-right: 16px;
 	width: 95%;
+	max-width: 1024px;
 	margin: 0 auto;
+	padding-right: 16px;
+	padding-left: 16px;
 }
 
 .content-cart {
 	display: grid;
-	grid-template-areas: 'info info' 'list amount';
-	column-gap: 60px;
 	grid-template-columns: 2fr 1fr;
+	grid-template-areas: 'info info' 'list amount';
 	align-items: flex-start;
+	column-gap: 60px;
 }
 
 .cart-title {
+	grid-area: info;
+	margin-bottom: 20px;
 	font-weight: 300;
 	font-size: 28px;
 	line-height: 32px;
-	margin-bottom: 20px;
-	grid-area: info;
 }
 
 .cart-title span {
@@ -31,14 +31,14 @@
 }
 
 .cart-list {
-	width: 100%;
 	display: flex;
 	flex-direction: column;
+	width: 100%;
 }
 
 .cart-item {
-	gap: 32px;
 	align-items: center;
+	gap: 32px;
 	padding-top: 24px;
 	padding-bottom: 24px;
 	border-bottom: 1px solid #eceff1;
@@ -63,13 +63,13 @@
 }
 
 .cart-item__title {
-	margin: 0;
 	width: 100%;
+	margin: 0;
+	color: currentcolor;
 	font-weight: 700;
 	font-size: 14px;
 	line-height: 20px;
 	text-decoration: none;
-	color: currentColor;
 }
 
 .cart-item__price {
@@ -78,16 +78,16 @@
 
 .cart-item__weight {
 	margin: 0;
+	color: #7b8e98;
 	font-weight: 400;
 	font-size: 12px;
 	line-height: 14px;
-	color: #7b8e98;
 }
 
 .cart-item__bnt-trash {
 	padding: 0;
-	border: none;
 	background-color: transparent;
+	border: none;
 	cursor: pointer;
 }
 
@@ -103,35 +103,34 @@ input[type='number']::-webkit-inner-spin-button {
 input[type='number'],
 input[type='number']:hover,
 input[type='number']:focus {
+	appearance: textfield;
 	appearance: none;
-	-moz-appearance: textfield;
 }
 
 .price-wrap {
 	position: relative;
-	padding-top: 1.2em;
 	max-width: 200px;
+	padding-top: 1.2em;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
 .price {
+	display: block;
+	font-weight: 800;
 	font-size: 1.75em;
 	line-height: 1.14;
-	font-weight: 800;
-	display: block;
 }
 
 .price_old {
-	font-size: 0.875em;
-	font-weight: 400;
-	line-height: 1.42;
-	text-decoration: line-through;
-	display: block;
 	position: absolute;
 	top: 0;
 	left: 0;
+	display: block;
 	font-weight: 600;
+	font-size: 0.88em;
+	line-height: 1.42;
+	text-decoration: line-through;
 }
 
 .price_discount {
@@ -147,32 +146,31 @@ input[type='number']:focus {
 }
 
 .price_left {
-	left: 0;
 	right: auto;
+	left: 0;
 }
 
 .price_right {
-	left: auto;
 	right: 0;
+	left: auto;
 }
 
 .cart-amount {
-	grid-area: amount;
-	background: #ffffff;
-	box-shadow: 0px 0px 1px rgba(40, 41, 61, 0.02),
-		0px 2px 16px rgba(96, 97, 112, 0.16);
-	border-radius: 20px;
-	padding: 16px;
 	display: grid;
 	grid-auto-rows: min-content;
+	grid-area: amount;
 	row-gap: 24px;
+	padding: 16px;
+	background: #ffffff;
+	border-radius: 20px;
+	box-shadow: 0 0 1px rgb(40 41 61 / 2%), 0 2px 16px rgb(96 97 112 / 16%);
 }
 
 .cart-amount__title {
+	margin: 0;
 	font-weight: 800;
 	font-size: 20px;
 	line-height: 24px;
-	margin: 0;
 }
 
 .cart-amount__table {
@@ -221,18 +219,18 @@ input[type='number']:focus {
 }
 
 .button {
-	padding: 10px 18px;
-	font-size: 16px;
-	font-weight: 700;
-	line-height: 20px;
-	border-radius: 55px;
-	text-decoration: none;
 	display: inline-flex;
 	align-items: center;
+	padding: 10px 18px;
+	font-weight: 700;
+	font-size: 16px;
+	line-height: 20px;
+	text-decoration: none;
 	column-gap: 8px;
-	transition: background-color 0.3s;
 	border: 2px solid transparent;
+	border-radius: 55px;
 	cursor: pointer;
+	transition: background-color 0.3s;
 }
 
 .button_type_primary {
@@ -240,13 +238,13 @@ input[type='number']:focus {
 }
 
 .button_type_primary:hover {
-	background-color: #ffaa0d;
 	color: #f44336;
+	background-color: #ffaa0d;
 }
 
 .button_type_ligth {
-	background-color: #ffffff;
 	color: #1a1a1a;
+	background-color: #ffffff;
 }
 
 .button_type_ligth:hover {
@@ -254,9 +252,9 @@ input[type='number']:focus {
 }
 
 .button_type_secondary {
+	color: #1a1a1a;
 	background-color: transparent;
 	border-color: #cfd8dc;
-	color: #1a1a1a;
 }
 
 .button_type_secondary:hover {
@@ -264,9 +262,9 @@ input[type='number']:focus {
 }
 
 .button_type_border {
+	color: #1a1a1a;
 	background-color: transparent;
 	border-color: #cfd8dc;
-	color: #1a1a1a;
 }
 
 .button_type_border:hover {
@@ -274,14 +272,14 @@ input[type='number']:focus {
 }
 
 .button_type_box {
+	padding: 16px 16px 16px 28px;
 	font-weight: 800;
 	font-size: 20px;
 	line-height: 24px;
-	box-shadow: 0px 0px 1px rgba(40, 41, 61, 0.02),
-		0px 2px 16px rgba(96, 97, 112, 0.16);
 	border-radius: 60px;
-	padding: 16px 16px 16px 28px;
+	box-shadow: 0 0 1px rgb(40 41 61 / 2%), 0 2px 16px rgb(96 97 112 / 16%);
 }
+
 .button_type_wide {
 	width: 100%;
 }
