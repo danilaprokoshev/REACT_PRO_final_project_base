@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import s from './ProductPage.module.css';
 import { useLocation } from 'react-router-dom';
 import classNames from 'classnames';
+import { Button } from '../../../shared/ui/Button';
 import truckSVG from '../../../shared/assets/icons/truck.svg';
 import qualitySVG from '../../../shared/assets/icons/quality.svg';
 import { Rating } from '../../../shared/ui/Rating';
 import { ButtonBack } from '../../../shared/ui/ButtonBack';
 import { LikeButton } from '../../../shared/ui/LikeButton';
+import { Modal } from '../../../shared/ui/Modal';
 import { ReviewList } from '../../../widgets/ReviewList/ui/ReviewList';
 import { WithProtection } from '../../../shared/store/HOCs/WithProtection';
 import { useGetProductQuery } from '../../../shared/store/api/productsApi';
@@ -18,6 +21,7 @@ export const ProductPage = WithProtection(() => {
 	const location = useLocation();
 	const { pathname } = location;
 	const productId = pathname.split('/').at(-1) || '';
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
 	const cartProducts = useAppSelector(cartSelectors.getCartProducts);
 
@@ -60,6 +64,12 @@ export const ProductPage = WithProtection(() => {
 					)}
 
 					<LikeButton product={product} />
+					<Button
+						variant='outlined'
+						onClick={() => setIsDeleteModalOpen(true)}
+						sx={{ mt: 1, color: 'error.main', borderColor: 'error.main' }}>
+						Удалить товар
+					</Button>
 					<div className={classNames(s['product__delivery'])}>
 						<img src={truckSVG} alt='truck' />
 						<div className={classNames(s['product__right'])}>
@@ -126,6 +136,35 @@ export const ProductPage = WithProtection(() => {
 				</div>
 			</div>
 			<ReviewList product={product} />
+
+			<Modal
+				isOpen={isDeleteModalOpen}
+				onClose={() => setIsDeleteModalOpen(false)}
+				title='Удаление товара'>
+				<p>Вы уверены, что хотите удалить «{name}»?</p>
+				<div
+					style={{
+						display: 'flex',
+						gap: '12px',
+						marginTop: '16px',
+						justifyContent: 'flex-end',
+					}}>
+					<Button
+						variant='outlined'
+						onClick={() => setIsDeleteModalOpen(false)}>
+						Отмена
+					</Button>
+					<Button
+						variant='contained'
+						onClick={() => setIsDeleteModalOpen(false)}
+						sx={{
+							bgcolor: 'error.main',
+							'&:hover': { bgcolor: 'error.dark' },
+						}}>
+						Удалить
+					</Button>
+				</div>
+			</Modal>
 		</>
 	);
 });
