@@ -1,21 +1,23 @@
+import { memo, useCallback } from 'react';
 import classNames from 'classnames';
 import s from './Card.module.css';
 import { Price } from './Price/ui/Price';
 import { Link } from 'react-router-dom';
 import { LikeButton } from '../../LikeButton';
-import { useAppSelector } from '../../../store/utils';
-import { cartSelectors } from '../../../store/slices/cart';
 import { useAddToCart } from '../../../hooks/useAddToCart';
 import { CartCounter } from '../../CartCounter';
 
 type CardProps = {
 	product: Product;
+	isInCart: boolean;
 };
-export const Card = ({ product }: CardProps) => {
+function CardComponent({ product, isInCart }: CardProps) {
 	const { discount, price, name, tags, id, images } = product;
-	const cartProducts = useAppSelector(cartSelectors.getCartProducts);
-	const isProductInCart = cartProducts.some((p) => p.id === id);
 	const { addProductToCart } = useAddToCart();
+
+	const handleAddToCart = useCallback(() => {
+		addProductToCart({ ...product, count: 1 });
+	}, [addProductToCart, product]);
 
 	return (
 		<article className={s['card']}>
@@ -51,12 +53,12 @@ export const Card = ({ product }: CardProps) => {
 					<h3 className={s['card__name']}>{name}</h3>
 				</div>
 			</Link>
-			{isProductInCart ? (
+			{isInCart ? (
 				<CartCounter productId={id} />
 			) : (
 				<button
-					onClick={() => addProductToCart({ ...product, count: 1 })}
-					disabled={isProductInCart}
+					onClick={handleAddToCart}
+					disabled={isInCart}
 					className={classNames(
 						s['card__cart'],
 						s['card__btn'],
@@ -67,4 +69,13 @@ export const Card = ({ product }: CardProps) => {
 			)}
 		</article>
 	);
-};
+}
+
+function areEqual(prevProps: CardProps, nextProps: CardProps) {
+	return (
+		prevProps.product.id === nextProps.product.id &&
+		prevProps.isInCart === nextProps.isInCart
+	);
+}
+
+export const Card = memo(CardComponent, areEqual);
