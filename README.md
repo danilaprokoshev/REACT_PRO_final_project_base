@@ -15,6 +15,7 @@
 - [🛠 Стек технологий](#-стек-технологий)
 - [⚙️ Ключевой функционал](#️-ключевой-функционал)
 - [🚀 Оптимизация и производительность](#-оптимизация-и-производительность)
+- [🎯 useRef — хранение без ререндера и DOM-интеракции](#-useref--хранение-без-ререндера-и-dom-интеракции)
 - [📂 Структура проекта](#-структура-проекта)
 - [🔧 Сравнение сборок](#-сравнение-сборок)
 - [💻 Инструкция по запуску](#-инструкция-по-запуску)
@@ -120,6 +121,17 @@
 
 ## 🚀 Оптимизация и производительность
 
+### 🔎 Profiler — поиск hotspot
+
+С помощью React DevTools Profiler найдена горячая точка: при добавлении товара в корзину / клике на лайк перерисовывался **весь список** карточек в `CardList`, хотя визуально менялась только одна. Причиной была нестабильная ссылка массива `cartProducts`, передаваемая в `Card`.
+
+**Результаты замеров (10+ карточек на странице):**
+
+| Метрика              | До оптимизации         | После оптимизации          |
+| -------------------- | ---------------------- | -------------------------- |
+| Время рендера списка | ~8.9 мс (все карточки) | ~0.1–0.4 мс (1–2 карточки) |
+| Ускорение            | —                      | **в 20–80 раз**            |
+
 ### ✨ `memo` + кастомный компаратор — Card
 
 Компонент `Card` обёрнут в `React.memo` с **кастомной функцией сравнения**:
@@ -135,7 +147,7 @@ function areEqual(prevProps: CardProps, nextProps: CardProps) {
 export const Card = memo(CardComponent, areEqual);
 ```
 
-Карточка перерисовывается только при изменении `product.id` или `isInCart`, а не при каждом обновлении родительского списка.
+Карточка перерисовывается только при изменении `product.id` или `isInCart`, а не при каждом обновлении родительского списка. Сам `CardList` также обёрнут в `memo`.
 
 ### ⚡ `useMemo` — CardList
 
@@ -161,11 +173,63 @@ export const Card = memo(CardComponent, areEqual);
 `LikeButton` использует React 19 хук **`useOptimistic`**:
 
 ```typescript
-const [confirmedLike, setConfirmedLike] = useState(isLike);
+const isLike = product?.likes.some((l) => l.userId === user?.id); // «правда» от сервера
+const [confirmedLike, setConfirmedLike] = useState(isLike); // буфер подтверждения
 const [optimisticLike, setOptimisticLike] = useOptimistic(confirmedLike);
 ```
 
-Лайк мгновенно меняет визуальное состояние ещё до ответа сервера. Если запрос завершается ошибкой — состояние откатывается. Операции обёрнуты в `startTransition` для неблокирующих обновлений.
+Три слоя состояния нужны, чтобы корректно обрабатывать гонки между инвалидацией кэша RTK Query и React transitions:
+
+- `isLike` — значение, вычисляемое из `product.likes` (обновляется RTK Query).
+- `confirmedLike` — «буфер»: обновляется только после успешного ответа сервера, синхронизируется с `isLike` через `useEffect`.
+- `optimisticLike` — то, что рендерится в UI, мгновенно переключается на клик.
+
+Лайк мгновенно меняет визуальное состояние ещё до ответа сервера. Если запрос завершается ошибкой — `useOptimistic` автоматически откатывает значение к `confirmedLike`. Все переключения обёрнуты в `startTransition` (этого требует `useOptimistic`).
+
+![Демонстрация useOptimistic в LikeButton](docs/assets/optimistic-like.webp)
+
+### 🎯 `useActionState` — ReviewForm
+
+Форма отправки отзывов использует React 19 хук **`useActionState`** для управления состоянием асинхронных действий:
+
+```typescript
+const [state, submitAction, isPending] = useActionState<
+	ReviewFormState,
+	FormData
+>(
+	async (_prevState, formData) => {
+		const text = formData.get('text') as string;
+
+		// Имитация асинхронного запроса
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+
+		if (rating === 0) {
+			return {
+				success: false,
+				message: 'Поставьте оценку',
+				resetKey: _prevState.resetKey,
+			};
+		}
+
+		return {
+			success: true,
+			message: 'Спасибо за отзыв!',
+			resetKey: _prevState.resetKey + 1,
+		};
+	},
+	{ success: false, message: '', resetKey: 0 }
+);
+```
+
+**Преимущества `useActionState`:**
+
+- Автоматическое управление состоянием `pending` во время выполнения действия
+- Возврат результата (success/error) через состояние
+- Автоматический сброс формы при успешной отправке (через `key={state.resetKey}`)
+- Нет необходимости в `useState` для управления состоянием загрузки и ошибок
+- Действие работает без JavaScript (progressive enhancement)
+
+📍 **Код:** `src/widgets/ReviewList/ui/ReviewForm/ReviewForm.tsx`
 
 ### 🖼️ Lazy loading изображений
 
@@ -177,6 +241,58 @@ const [optimisticLike, setOptimisticLike] = useOptimistic(confirmedLike);
 - `MiniCssExtractPlugin` — вынос CSS в отдельные файлы
 - PostCSS с `cssnano` — минификация CSS
 - `CleanWebpackPlugin` — очистка `dist` перед сборкой
+
+---
+
+## 🎯 useRef — хранение без ререндера и DOM-интеракции
+
+В проекте `useRef` применён в двух характерных паттернах:
+
+### 1. Автофокус на DOM-элемент — SignInForm
+
+В форме входа при монтировании автоматически фокусируется поле email:
+
+```typescript
+const emailRef = useRef<HTMLInputElement>(null);
+
+useEffect(() => {
+	emailRef.current?.focus();
+}, []);
+
+// ...
+<Input inputRef={emailRef} {...field} />;
+```
+
+Ссылка пробрасывается через проп `inputRef` компонента `Input` (обёртка MUI `TextField`), который передаёт её на нативный `<input>`.
+
+📍 **Код:** `src/features/auth/SignInForm/ui/SignInForm.tsx`
+
+### 2. Хранение значения между рендерами без ререндера — счётчик открытий Modal
+
+В компоненте `Modal` ведётся счётчик открытий, который логируется в консоль, но не вызывает ререндера:
+
+```typescript
+const openCountRef = useRef(0);
+
+useEffect(() => {
+	if (isOpen) {
+		openCountRef.current += 1;
+		console.log('Modal opened', openCountRef.current, 'times');
+	}
+}, [isOpen]);
+```
+
+В отличие от `useState`, мутация `ref.current` не триггерит повторный рендер — это идеальный паттерн для счётчиков, таймеров и «прошлых значений», которые нужны в логике, но не в UI.
+
+### 3. Фокус-менеджмент в Modal
+
+Дополнительно `useRef` применяется для:
+
+- `containerRef` — ссылка на контейнер модалки (клик вне + Tab-trap).
+- `closeButtonRef` — ссылка на крестик для установки начального фокуса при открытии.
+- `triggerRef` — сохранение `document.activeElement` перед открытием, чтобы вернуть фокус на элемент-триггер при закрытии.
+
+📍 **Код:** `src/shared/ui/Modal/ui/Modal.tsx`
 
 ---
 
@@ -205,15 +321,15 @@ src/
 │   ├── Footer/               # Подвал
 │   └── ReviewList/           # Список отзывов + форма отзыва
 │
-├── features/                 # Бизнес-логика пользователя
+├── features/                 # Слой бизнес-фич пользователя
 │   └── auth/
-│       ├── SignInForm/       # Форма входа (react-hook-form + yup)
+│       ├── SignInForm/       # Форма входа (react-hook-form + yup + useRef автофокус)
 │       └── SignUpForm/       # Форма регистрации
 │
-└── shared/                   # Переиспользуемый код
+└── shared/                   # Переиспользуемый код (без бизнес-логики)
     ├── api/
-    │   └── ApiServise.ts     # REST-клиент (класс Api, fetch wrapper)
-    ├── assets/               # SVG-иконки
+    │   └── ApiServise.ts     # Легаси REST-клиент (не используется в auth-флоу)
+    ├── assets/               # SVG-иконки, изображения
     ├── hooks/                # Кастомные хуки
     │   ├── useDebounce.ts    # Debounce для поиска
     │   ├── usePagination.ts  # Универсальная пагинация
@@ -221,47 +337,64 @@ src/
     ├── providers/
     │   └── router/           # React Router v6 конфигурация
     ├── store/
-    │   ├── api/              # RTK Query слайсы (authApi, productsApi)
+    │   ├── api/              # RTK Query слайсы (authApi, productsApi, config)
     │   ├── slices/           # Redux slices (user, cart, products)
     │   ├── hooks/            # useProducts (useMemo-фильтрация)
     │   ├── HOCs/             # WithProtection, WithQuery
+    │   ├── reducers/         # rootReducer (combineReducers)
     │   ├── store.ts          # configureStore
     │   ├── types.ts          # RootState, AppDispatch
     │   └── utils.ts          # useAppSelector, useAppDispatch
     ├── types/
     │   └── global.d.ts       # Глобальные типы (Product, User, Review...)
-    ├── ui/                   # Переиспользуемые UI-компоненты
+    ├── ui/                   # Переиспользуемые презентационные UI-компоненты
     │   ├── Button/           # MUI Button/LoadingButton обёртка
-    │   ├── Input/            # MUI TextField обёртка
-    │   ├── Card/             # Карточка товара (memo)
-    │   ├── LikeButton/       # Кнопка лайка (useOptimistic)
-    │   ├── Modal/            # Модалка (Portal + a11y)
+    │   ├── ButtonBack/       # Кнопка «назад»
+    │   ├── Input/            # MUI TextField обёртка (совместима с Controller)
+    │   ├── Logo/             # Логотип
+    │   ├── Card/             # Карточка товара (memo + кастомный areEqual)
+    │   ├── LikeButton/       # Кнопка лайка (useOptimistic + React 19)
+    │   ├── Modal/            # Модалка (Portal + focus trap + a11y + useRef)
     │   ├── Search/           # Поиск (debounce + useSearchParams)
-    │   ├── Sort/             # Сортировка
-    │   ├── CartCounter/      # Счётчик товаров в корзине
+    │   ├── Sort/             # Сортировка по полям
+    │   ├── CartCounter/      # Счётчик товара уже в корзине
+    │   ├── ProductCartCounter/ # Счётчик количества при добавлении в корзину
     │   ├── LoadMore/         # Infinite scroll (IntersectionObserver)
     │   ├── Rating/           # Рейтинг звёздами
-    │   ├── Loader/           # Спиннер загрузки
-    │   └── ...
+    │   ├── Spinner/          # Основной спиннер
+    │   └── Loader/           # Реэкспорт Spinner (для единообразия именования)
     └── utils/                # Утилиты (isLiked, getMessageFromError)
 ```
+
+> **Про `shared/api/ApiServise.ts`:** это легаси класс-клиент с захардкоженным JWT-токеном, оставшийся с ранних итераций проекта. Основной поток авторизации и данных реализован через RTK Query (`src/shared/store/api/`).
 
 ---
 
 ## 🔧 Сравнение сборок
 
-Проект поддерживает два бандлера: **Webpack 5** (основная) и **esbuild** (образовательная).
+Проект поддерживает два бандлера: **Webpack 5** (основная) и **esbuild** (образовательная, для сравнения скорости и размера).
 
-| Метрика       | Webpack                                  | esbuild                     |
-| ------------- | ---------------------------------------- | --------------------------- |
-| Время сборки  | ~16.8s                                   | ~548ms                      |
-| Размер вывода | ~680 KB                                  | ~1.1 MB                     |
-| CSS Modules   | MiniCssExtractPlugin                     | Встроенный CSS loader       |
-| SVG           | @svgr/webpack                            | Кастомный плагин @svgr/core |
-| Dev server    | webpack-dev-server (HMR + React Refresh) | —                           |
-| Source maps   | eval-source-map (dev)                    | —                           |
+| Метрика       | Webpack                                  | esbuild                          |
+| ------------- | ---------------------------------------- | -------------------------------- |
+| Время сборки  | ~16.8 s                                  | ~548 ms (**~30× быстрее**)       |
+| Размер вывода | ~680 KB                                  | ~1.1 MB                          |
+| CSS Modules   | MiniCssExtractPlugin                     | Встроенный CSS loader            |
+| SVG           | `@svgr/webpack`                          | Кастомный плагин на `@svgr/core` |
+| Dev server    | webpack-dev-server (HMR + React Refresh) | —                                |
+| Source maps   | eval-source-map (dev)                    | —                                |
 
-**Вывод:** esbuild собирает в ~30 раз быстрее, но Webpack даёт более оптимизированный бандл с возможностью тонкой настройки и HMR.
+**Особенности esbuild-конфига (`esbuild.config.mjs`):**
+
+- Написан **кастомный SVGR-плагин**, т.к. проект импортирует SVG как React-компоненты (`import { ReactComponent as Icon } from './icon.svg'`), а встроенный `file`-loader esbuild этого не умеет.
+- Инъекция переменных окружения через `define` (`process.env.NODE_ENV`, `API_URL`).
+- Автоматическое копирование `public/index.html` с добавлением тега `<script>`.
+- Замер времени сборки через `console.time` / `console.timeEnd`.
+
+**Вывод:**
+
+- **esbuild** выигрывает в скорости в ~30 раз (Go + параллельная обработка файлов) — идеален для быстрых сборок в CI.
+- **Webpack** даёт более оптимизированный бандл (tree-shaking, splitChunks, `cssnano`) и предоставляет HMR + React Fast Refresh в dev-режиме.
+- Для данного проекта Webpack остаётся основным сборщиком, esbuild используется как демонстрация альтернативы.
 
 ---
 
@@ -326,15 +459,20 @@ npm run commit           # Запуск тестов + Commitizen (conventional 
 
 ## 📁 Важные файлы
 
-| Файл                                            | Назначение                                                 |
-| ----------------------------------------------- | ---------------------------------------------------------- |
-| `src/index.tsx`                                 | Точка входа — StrictMode + Redux Provider + RouterProvider |
-| `src/shared/store/store.ts`                     | Конфигурация Redux store с RTK Query middleware            |
-| `src/shared/store/reducers/rootReducer.ts`      | Корневой редьюсер (combineReducers)                        |
-| `src/shared/providers/router/config/router.tsx` | Маршруты (createBrowserRouter)                             |
-| `src/shared/ui/Modal/ui/Modal.tsx`              | Модалка с Portal, focus trap, a11y                         |
-| `src/shared/ui/LikeButton/ui/LikeButton.tsx`    | Оптимистичный UI (useOptimistic)                           |
-| `src/shared/store/hooks/useProducts.ts`         | Хук получения товаров с фильтрацией                        |
-| `webpack/webpack.common.js`                     | Общая конфигурация Webpack                                 |
-| `esbuild.config.mjs`                            | Конфигурация esbuild                                       |
-| `public/index.html`                             | HTML-шаблон с `<div id="modal-root">`                      |
+| Файл                                                  | Назначение                                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------------ |
+| `src/index.tsx`                                       | Точка входа — StrictMode + Redux Provider + RouterProvider         |
+| `src/app/App.tsx`                                     | Корневой лейаут (Header + Sort + Outlet + ToastContainer + Footer) |
+| `src/shared/store/store.ts`                           | Конфигурация Redux store с RTK Query middleware                    |
+| `src/shared/store/reducers/rootReducer.ts`            | Корневой редьюсер (combineReducers)                                |
+| `src/shared/providers/router/config/router.tsx`       | Маршруты (createBrowserRouter)                                     |
+| `src/shared/ui/Modal/ui/Modal.tsx`                    | Модалка с Portal, focus trap, a11y, useRef-счётчик открытий        |
+| `src/shared/ui/Card/ui/Card.tsx`                      | Карточка товара (React.memo + useCallback + кастомный areEqual)    |
+| `src/widgets/CardList/ui/CardList.tsx`                | Список карточек (memo + useMemo для Set cartProductIds и JSX)      |
+| `src/shared/ui/LikeButton/ui/LikeButton.tsx`          | Оптимистичный UI (useOptimistic + startTransition, React 19)       |
+| `src/widgets/ReviewList/ui/ReviewForm/ReviewForm.tsx` | Форма отзывов с useActionState (React 19)                          |
+| `src/features/auth/SignInForm/ui/SignInForm.tsx`      | Форма входа + автофокус на email через useRef + useEffect          |
+| `src/shared/store/hooks/useProducts.ts`               | Хук получения товаров с фильтрацией                                |
+| `webpack/webpack.common.js`                           | Общая конфигурация Webpack                                         |
+| `esbuild.config.mjs`                                  | Конфигурация esbuild с кастомным SVGR-плагином                     |
+| `public/index.html`                                   | HTML-шаблон с `<div id="root">` и `<div id="modal-root">`          |
